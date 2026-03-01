@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Runtime / dev data
+run/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+*.env
