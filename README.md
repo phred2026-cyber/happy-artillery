@@ -24,7 +24,7 @@ A Fabric mod for Minecraft 1.21.x that turns Happy Ghasts into rideable artiller
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 - Java 21+
 
-Server-side only — clients don't need it installed.
+**Works in singleplayer and multiplayer.** For servers, install it server-side only — clients do NOT need it installed. Every player who joins can use it automatically.
 
 ---
 

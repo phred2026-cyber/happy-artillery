@@ -3,7 +3,7 @@
 	"id": "happy-artillery",
 	"version": "${version}",
 	"name": "Happy Artillery",
-	"description": "A Fabric mod that adds fireball shooting to Happy Ghasts when right-clicked by riders. Fully configurable.",
+	"description": "Adds fireball shooting to Happy Ghasts. Works in singleplayer and on servers — server-side only, no client install needed. All players on the server can use it automatically.",
 	"authors": [
 		"OG Moo-cow"
 	],
