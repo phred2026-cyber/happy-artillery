@@ -14,30 +14,11 @@ repositories {
 	mavenCentral()
 }
 
-def localMinecraftMetadataServer = {
-	def metadataDir = file("gradle/minecraft")
-	def server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0)
-	server.createContext("/") { exchange ->
-		def requestPath = exchange.requestURI.path.startsWith("/") ? exchange.requestURI.path.substring(1) : exchange.requestURI.path
-		def target = new File(metadataDir, requestPath)
-		if (target.isFile()) {
-			byte[] body = target.bytes
-			exchange.responseHeaders.add("Content-Type", "application/json")
-			exchange.sendResponseHeaders(200, body.length)
-			exchange.responseBody.withCloseable { it.write(body) }
-		} else {
-			exchange.sendResponseHeaders(404, -1)
-			exchange.close()
-		}
-	}
-	server.start()
-	gradle.buildFinished { server.stop(0) }
-	return "http://127.0.0.1:${server.address.port}/26.1.2-custom.json"
-}.call()
+def localMinecraftMetadata = file("gradle/minecraft/26.1.2-custom.json").toURI().toString()
 
 loom {
 	noIntermediateMappings()
-	customMinecraftMetadata.set(localMinecraftMetadataServer)
+	customMinecraftMetadata.set(localMinecraftMetadata)
 
 	mods {
 		"happy-artillery" {

@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(Entity.class)
 public interface EntityWorldAccessor {
-    // Yarn field for Entity's world
-    @Accessor("world")
+    @Accessor("level")
     Level happy$getLevel();
 }

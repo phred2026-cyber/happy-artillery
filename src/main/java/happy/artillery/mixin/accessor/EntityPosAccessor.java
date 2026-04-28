@@ -7,7 +7,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(Entity.class)
 public interface EntityPosAccessor {
-    // Yarn field for Entity position
-    @Accessor("pos")
+    @Accessor("position")
     Vec3 happy$getPos();
 }
