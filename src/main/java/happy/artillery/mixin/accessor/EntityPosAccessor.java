@@ -1,7 +1,7 @@
 package happy.artillery.mixin.accessor;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -9,5 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface EntityPosAccessor {
     // Yarn field for Entity position
     @Accessor("pos")
-    Vec3d happy$getPos();
+    Vec3 happy$getPos();
 }

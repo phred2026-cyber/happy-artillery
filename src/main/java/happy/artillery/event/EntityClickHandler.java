@@ -6,24 +6,24 @@ import happy.artillery.mixin.accessor.EntityWorldAccessor;
 import happy.artillery.util.CooldownTracker;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.projectile.FireballEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
-import net.minecraft.world.chunk.ChunkStatus;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,32 +35,32 @@ public class EntityClickHandler {
 
     public static void register() {
         UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (world.isClient()) return ActionResult.PASS;
+            if (world.isClientSide()) return InteractionResult.PASS;
             Entity vehicle = player.getVehicle();
-            if (vehicle == null || !vehicle.equals(entity)) return ActionResult.PASS;
-            if (!isHappyGhast(vehicle)) return ActionResult.PASS;
+            if (vehicle == null || !vehicle.equals(entity)) return InteractionResult.PASS;
+            if (!isHappyGhast(vehicle)) return InteractionResult.PASS;
 
-            return handleStickAction(player, hand, vehicle, (ServerWorld) world);
+            return handleStickAction(player, hand, vehicle, (ServerLevel) world);
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
-            if (world.isClient()) return ActionResult.PASS;
+            if (world.isClientSide()) return InteractionResult.PASS;
             Entity vehicle = player.getVehicle();
-            if (vehicle == null) return ActionResult.PASS;
-            if (!isHappyGhast(vehicle)) return ActionResult.PASS;
+            if (vehicle == null) return InteractionResult.PASS;
+            if (!isHappyGhast(vehicle)) return InteractionResult.PASS;
 
-            return handleStickAction(player, hand, vehicle, (ServerWorld) world);
+            return handleStickAction(player, hand, vehicle, (ServerLevel) world);
         });
     }
 
-    private static ActionResult handleStickAction(net.minecraft.entity.player.PlayerEntity player, Hand hand, Entity vehicle, ServerWorld world) {
-        ItemStack stack = player.getStackInHand(hand);
+    private static InteractionResult handleStickAction(net.minecraft.world.entity.player.Player player, InteractionHand hand, Entity vehicle, ServerLevel world) {
+        ItemStack stack = player.getItemInHand(hand);
         if (isFireStick(stack)) {
             return shoot(player, vehicle, world);
         } else if (isCryStick(stack)) {
             return cry(player, vehicle);
         }
-        return ActionResult.PASS;
+        return InteractionResult.PASS;
     }
 
     private static boolean isFireStick(ItemStack stack) {
@@ -69,7 +69,7 @@ public class EntityClickHandler {
             return true;
         }
         // Fallback to original fire charge item check (if not using control system)
-        return !stack.isEmpty() && Registries.ITEM.getId(stack.getItem()).toString().equals(HAConstants.FIRE_STICK_ITEM);
+        return !stack.isEmpty() && BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(HAConstants.FIRE_STICK_ITEM);
     }
 
     private static boolean isCryStick(ItemStack stack) {
@@ -78,54 +78,54 @@ public class EntityClickHandler {
             return true;
         }
         // Fallback to original ghast tear item check (if not using control system)
-        return !stack.isEmpty() && Registries.ITEM.getId(stack.getItem()).toString().equals(HAConstants.CRY_STICK_ITEM);
+        return !stack.isEmpty() && BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals(HAConstants.CRY_STICK_ITEM);
     }
 
     private static boolean isHappyGhast(Entity vehicle) {
-        String id = Registries.ENTITY_TYPE.getId(vehicle.getType()).toString();
+        String id = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).toString();
         return id.equals(HAConstants.HAPPY_GHAST_ENTITY_ID);
     }
 
-    private static ActionResult cry(net.minecraft.entity.player.PlayerEntity player, Entity vehicle) {
-        if (vehicle.isSubmergedInWater()) {
-            return ActionResult.FAIL;
+    private static InteractionResult cry(net.minecraft.world.entity.player.Player player, Entity vehicle) {
+        if (vehicle.isInWater()) {
+            return InteractionResult.FAIL;
         }
-        if (!CooldownTracker.canCry(player.getUuid())) {
-            return ActionResult.FAIL;
+        if (!CooldownTracker.canCry(player.getUUID())) {
+            return InteractionResult.FAIL;
         }
-        CooldownTracker.recordCry(player.getUuid());
-        ServerWorld world = (ServerWorld) ((EntityWorldAccessor) vehicle).happy$getWorld();
-        world.playSound(null, vehicle.getBlockPos(), SoundEvents.ENTITY_GHAST_SCREAM, SoundCategory.HOSTILE, HAConstants.CRY_VOLUME(), 0.8f);
-        return ActionResult.SUCCESS;
+        CooldownTracker.recordCry(player.getUUID());
+        ServerLevel world = (ServerLevel) ((EntityWorldAccessor) vehicle).happy$getLevel();
+        world.playSound(null, vehicle.blockPosition(), SoundEvents.GHAST_SCREAM, SoundSource.HOSTILE, HAConstants.CRY_VOLUME(), 0.8f);
+        return InteractionResult.SUCCESS;
     }
 
-    private static ActionResult shoot(net.minecraft.entity.player.PlayerEntity player, Entity vehicle, ServerWorld world) {
-        var ghastId = vehicle.getUuid();
+    private static InteractionResult shoot(net.minecraft.world.entity.player.Player player, Entity vehicle, ServerLevel world) {
+        var ghastId = vehicle.getUUID();
 
         // Water prevents firing but cools
-        if (vehicle.isSubmergedInWater()) {
+        if (vehicle.isInWater()) {
             CooldownTracker.applyWaterCooling(ghastId);
-            return ActionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         // Heat / Overheat check
         int overheatLimit = biomeOverheatLimit(world, vehicle);
         double currentHeat = CooldownTracker.getFireballHeat(ghastId);
         if (currentHeat >= overheatLimit) {
-            return ActionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         // Shoot cooldown
         if (!CooldownTracker.canShoot(ghastId)) {
             logger.debug("[HappyArtillery] Shoot blocked by cooldown");
-            return ActionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         // Ammo check
         int cost = HAConstants.FIREBALL_AMMO_COST();
         int ammo = CooldownTracker.getAmmo(ghastId);
         if (ammo < cost) {
-            return ActionResult.FAIL;
+            return InteractionResult.FAIL;
         }
         CooldownTracker.useAmmo(ghastId, cost);
 
@@ -136,28 +136,28 @@ public class EntityClickHandler {
 
         if (willExplode) {
             performOverheatExplosion(world, vehicle, player);
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         spawnFireball(world, vehicle, player);
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
-    private static void spawnFireball(ServerWorld world, Entity mount, net.minecraft.entity.player.PlayerEntity player) {
-        Vec3d dir = player.getRotationVector().normalize();
-        float eyeHeight = (mount instanceof LivingEntity) ? ((LivingEntity) mount).getStandingEyeHeight() : (mount.getHeight() * 0.6f);
+    private static void spawnFireball(ServerLevel world, Entity mount, net.minecraft.world.entity.player.Player player) {
+        Vec3 dir = player.getViewVector(1.0F).normalize();
+        float eyeHeight = (mount instanceof LivingEntity) ? ((LivingEntity) mount).getEyeHeight() : (mount.getBbHeight() * 0.6f);
         double spawnX = mount.getX() + dir.x * 2.0;
         double spawnY = mount.getY() + eyeHeight;
         double spawnZ = mount.getZ() + dir.z * 2.0;
         double speed = 0.5;
-        Vec3d velocity = new Vec3d(dir.x * speed, dir.y * speed, dir.z * speed);
+        Vec3 velocity = new Vec3(dir.x * speed, dir.y * speed, dir.z * speed);
         LivingEntity owner = (mount instanceof LivingEntity) ? (LivingEntity) mount : player;
         
-        FireballEntity fireball = new FireballEntity(world, owner, velocity, HAConstants.FIREBALL_EXPLOSION_POWER());
-        fireball.setPosition(spawnX, spawnY, spawnZ);
+        LargeFireball fireball = new LargeFireball(world, owner, velocity, HAConstants.FIREBALL_EXPLOSION_POWER());
+        fireball.setPos(spawnX, spawnY, spawnZ);
 
-        boolean spawned = world.spawnEntity(fireball);
-        world.playSound(null, spawnX, spawnY, spawnZ, SoundEvents.ENTITY_GHAST_SHOOT, SoundCategory.HOSTILE, 1.0f, 1.0f);
+        boolean spawned = world.addFreshEntity(fireball);
+        world.playSound(null, spawnX, spawnY, spawnZ, SoundEvents.GHAST_SHOOT, SoundSource.HOSTILE, 1.0f, 1.0f);
         logger.debug("[HappyArtillery] Spawned ghast fireball success={}", spawned);
         
         if (spawned) {
@@ -168,10 +168,10 @@ public class EntityClickHandler {
         }
     }
 
-    private static void forceLoadFireballPath(ServerWorld world, double startX, double startY, double startZ, Vec3d velocity) {
+    private static void forceLoadFireballPath(ServerLevel world, double startX, double startY, double startZ, Vec3 velocity) {
         // Pre-load chunks in the direction the fireball is traveling
         // This ensures chunks don't unload as the fireball flies through them
-        Vec3d normalizedDir = velocity.normalize();
+        Vec3 normalizedDir = velocity.normalize();
         double maxDistance = 128.0; // Load chunks up to 128 blocks away
         int steps = 16; // Check every 8 blocks
         
@@ -181,44 +181,40 @@ public class EntityClickHandler {
             double checkY = startY + normalizedDir.y * distance;
             double checkZ = startZ + normalizedDir.z * distance;
             
-            BlockPos pos = BlockPos.ofFloored(checkX, checkY, checkZ);
-            ChunkPos chunkPos = new ChunkPos(pos);
+            BlockPos pos = BlockPos.containing(checkX, checkY, checkZ);
+            ChunkPos chunkPos = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
             
             // Force load the chunk - add ticket to keep chunks loaded
-            world.getChunkManager().addTicket(
-                net.minecraft.server.world.ChunkTicketType.UNKNOWN,
-                chunkPos,
-                1
-            );
+            world.getChunk(chunkPos.x(), chunkPos.z());
         }
     }
 
-    private static void fallbackInstantRay(ServerWorld world, Entity mount, Vec3d dir, double sx, double sy, double sz) {
-        Vec3d origin = new Vec3d(sx, sy, sz);
+    private static void fallbackInstantRay(ServerLevel world, Entity mount, Vec3 dir, double sx, double sy, double sz) {
+        Vec3 origin = new Vec3(sx, sy, sz);
         double maxDistance = 48.0;
-        Vec3d target = origin.add(dir.multiply(maxDistance));
-        RaycastContext ctx = new RaycastContext(origin, target, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mount);
-        var hit = world.raycast(ctx);
-        Vec3d impact = (hit.getType() != net.minecraft.util.hit.HitResult.Type.MISS) ? hit.getPos() : target;
+        Vec3 target = origin.add(dir.scale(maxDistance));
+        ClipContext ctx = new ClipContext(origin, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mount);
+        var hit = world.clip(ctx);
+        Vec3 impact = (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS) ? hit.getLocation() : target;
         int steps = (int) (maxDistance / 0.6);
         for (int i = 0; i <= steps; i++) {
             double t = i / (double) steps;
-            Vec3d point = origin.add(dir.multiply(maxDistance * t));
-            if (point.squaredDistanceTo(impact) < 0.4) break;
-            world.spawnParticles(ParticleTypes.FLAME, point.x, point.y, point.z, 2, 0.02, 0.02, 0.02, 0.001);
+            Vec3 point = origin.add(dir.scale(maxDistance * t));
+            if (point.distanceToSqr(impact) < 0.4) break;
+            world.sendParticles(ParticleTypes.FLAME, point.x, point.y, point.z, 2, 0.02, 0.02, 0.02, 0.001);
         }
-        world.createExplosion(null, impact.x, impact.y, impact.z, HAConstants.FIREBALL_EXPLOSION_POWER(), true, net.minecraft.world.World.ExplosionSourceType.MOB);
-        world.playSound(null, origin.x, origin.y, origin.z, SoundEvents.ENTITY_GHAST_SHOOT, SoundCategory.HOSTILE, 1.0f, 1.0f);
+        world.explode(null, impact.x, impact.y, impact.z, HAConstants.FIREBALL_EXPLOSION_POWER(), true, net.minecraft.world.level.Level.ExplosionInteraction.MOB);
+        world.playSound(null, origin.x, origin.y, origin.z, SoundEvents.GHAST_SHOOT, SoundSource.HOSTILE, 1.0f, 1.0f);
         logger.debug("[HappyArtillery] Fallback ray fireball origin={} impact={}", origin, impact);
     }
 
-    private static void performOverheatExplosion(ServerWorld world, Entity mount, net.minecraft.entity.player.PlayerEntity player) {
-        Vec3d dir = player.getRotationVector().normalize();
-        float eyeHeight = (mount instanceof LivingEntity) ? ((LivingEntity) mount).getStandingEyeHeight() : (mount.getHeight() * 0.6f);
-        Vec3d explosionCenter = new Vec3d(mount.getX() + dir.x * 2.0, mount.getY() + eyeHeight, mount.getZ() + dir.z * 2.0);
+    private static void performOverheatExplosion(ServerLevel world, Entity mount, net.minecraft.world.entity.player.Player player) {
+        Vec3 dir = player.getViewVector(1.0F).normalize();
+        float eyeHeight = (mount instanceof LivingEntity) ? ((LivingEntity) mount).getEyeHeight() : (mount.getBbHeight() * 0.6f);
+        Vec3 explosionCenter = new Vec3(mount.getX() + dir.x * 2.0, mount.getY() + eyeHeight, mount.getZ() + dir.z * 2.0);
         
         // Create main explosion
-        world.createExplosion(null, explosionCenter.x, explosionCenter.y, explosionCenter.z, HAConstants.OVERHEAT_EXPLOSION_POWER(), HAConstants.OVERHEAT_EXPLOSION_CREATES_FIRE(), net.minecraft.world.World.ExplosionSourceType.TNT);
+        world.explode(null, explosionCenter.x, explosionCenter.y, explosionCenter.z, HAConstants.OVERHEAT_EXPLOSION_POWER(), HAConstants.OVERHEAT_EXPLOSION_CREATES_FIRE(), net.minecraft.world.level.Level.ExplosionInteraction.TNT);
         
         // Spawn fireballs in all directions (sphere pattern)
         spawnExplosionFireballSphere(world, mount, explosionCenter);
@@ -229,7 +225,7 @@ public class EntityClickHandler {
         logger.info("{}'s ghast overheated and exploded", player.getName().getString());
     }
 
-    private static void spawnExplosionFireballSphere(ServerWorld world, Entity mount, Vec3d center) {
+    private static void spawnExplosionFireballSphere(ServerLevel world, Entity mount, Vec3 center) {
         // Create a dense sphere of fireballs around the explosion center
         LivingEntity owner = (mount instanceof LivingEntity) ? (LivingEntity) mount : null;
         int fireballs = 48; // More fireballs for denser sphere coverage
@@ -244,16 +240,16 @@ public class EntityClickHandler {
             double vy = radius * Math.sin(phi) * Math.sin(theta);
             double vz = radius * Math.cos(phi);
             
-            Vec3d velocity = new Vec3d(vx, vy, vz);
-            FireballEntity fireball = new FireballEntity(world, owner, velocity, HAConstants.FIREBALL_EXPLOSION_POWER());
-            fireball.setPosition(center.x, center.y, center.z);
-            world.spawnEntity(fireball);
+            Vec3 velocity = new Vec3(vx, vy, vz);
+            LargeFireball fireball = new LargeFireball(world, owner, velocity, HAConstants.FIREBALL_EXPLOSION_POWER());
+            fireball.setPos(center.x, center.y, center.z);
+            world.addFreshEntity(fireball);
         }
         
-        world.playSound(null, center.x, center.y, center.z, SoundEvents.ENTITY_GHAST_SHOOT, SoundCategory.HOSTILE, 2.0f, 0.8f);
+        world.playSound(null, center.x, center.y, center.z, SoundEvents.GHAST_SHOOT, SoundSource.HOSTILE, 2.0f, 0.8f);
     }
 
-    private static void spawnFireRing(ServerWorld world, Vec3d center) {
+    private static void spawnFireRing(ServerLevel world, Vec3 center) {
         int radius = 5;
         for (int i = 0; i < 15; i++) {
             double angle = world.getRandom().nextDouble() * Math.PI * 2;
@@ -261,21 +257,21 @@ public class EntityClickHandler {
             double fx = center.x + dist * Math.cos(angle);
             double fz = center.z + dist * Math.sin(angle);
             double fy = center.y + (world.getRandom().nextDouble() - 0.5) * 2;
-            BlockPos bp = BlockPos.ofFloored(fx, fy, fz);
-            if (world.getBlockState(bp).isAir() && world.getBlockState(bp.down()).isSolid()) {
-                world.setBlockState(bp, net.minecraft.block.Blocks.FIRE.getDefaultState());
+            BlockPos bp = BlockPos.containing(fx, fy, fz);
+            if (world.getBlockState(bp).isAir() && world.getBlockState(bp.below()).isSolid()) {
+                world.setBlock(bp, net.minecraft.world.level.block.Blocks.FIRE.defaultBlockState(), 3);
             }
         }
     }
 
-    private static int biomeOverheatLimit(ServerWorld world, Entity vehicle) {
-        BlockPos pos = BlockPos.ofFloored(vehicle.getX(), vehicle.getY(), vehicle.getZ());
+    private static int biomeOverheatLimit(ServerLevel world, Entity vehicle) {
+        BlockPos pos = BlockPos.containing(vehicle.getX(), vehicle.getY(), vehicle.getZ());
         var biome = world.getBiome(pos).value();
-        float temp = biome.getTemperature();
+        float temp = biome.getBaseTemperature();
         
-        if (world.getRegistryKey().getValue().toString().contains("nether") || temp >= 1.5f) {
+        if (world.dimension().identifier().toString().contains("nether") || temp >= 1.5f) {
             return HAConstants.HOT_BIOME_LIMIT();
-        } else if (world.getRegistryKey().getValue().toString().contains("end") || temp <= 0.0f) {
+        } else if (world.dimension().identifier().toString().contains("end") || temp <= 0.0f) {
             return HAConstants.COLD_BIOME_LIMIT();
         }
         return HAConstants.BASE_OVERHEAT_LIMIT();

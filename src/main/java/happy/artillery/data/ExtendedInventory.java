@@ -1,8 +1,8 @@
 package happy.artillery.data;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.HolderLookup;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,21 +18,21 @@ public class ExtendedInventory {
         return storedHotbar != null && !storedHotbar.isEmpty();
     }
 
-    public void restoreHotbar(net.minecraft.inventory.Inventory inventory) {
+    public void restoreHotbar(net.minecraft.world.entity.player.Inventory inventory) {
         if (storedHotbar == null) return;
         for (int i = 0; i < 9 && i < storedHotbar.size(); i++) {
-            inventory.setStack(i, storedHotbar.get(i).copy());
+            inventory.setItem(i, storedHotbar.get(i).copy());
         }
         storedHotbar = null;
     }
 
-    public NbtCompound toNbt(RegistryWrapper.WrapperLookup lookup) {
+    public CompoundTag toNbt(HolderLookup.Provider lookup) {
         // Simplified: just return empty NBT for now
         // Full ItemStack CODEC serialization requires more complex DynamicOps setup
-        return new NbtCompound();
+        return new CompoundTag();
     }
 
-    public void fromNbt(NbtCompound tag, RegistryWrapper.WrapperLookup lookup) {
+    public void fromNbt(CompoundTag tag, HolderLookup.Provider lookup) {
         // Simplified: no-op for now
         // In-memory storage is sufficient; hotbar resets when player quits
     }

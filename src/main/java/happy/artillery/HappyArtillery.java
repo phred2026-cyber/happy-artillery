@@ -10,10 +10,10 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.commands.Commands;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +50,7 @@ public class HappyArtillery implements ModInitializer {
         // Register player death event to queue cleanup of dropped control items
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
             // Queue the old player (who just died) for cleanup
-            if (oldPlayer instanceof ServerPlayerEntity deadPlayer) {
+            if (oldPlayer instanceof ServerPlayer deadPlayer) {
                 ModItems.queuePlayerForCleanup(deadPlayer);
             }
         });
@@ -61,12 +61,12 @@ public class HappyArtillery implements ModInitializer {
         // Register debug command for testing control items
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(
-                CommandManager.literal("happytest")
+                Commands.literal("happytest")
                     .executes(context -> {
                         var source = context.getSource();
                         var player = source.getPlayer();
                         if (player == null) {
-                            source.sendError(Text.literal("Only players can run this command"));
+                            source.sendFailure(Component.literal("Only players can run this command"));
                             return 0;
                         }
                         
@@ -74,23 +74,23 @@ public class HappyArtillery implements ModInitializer {
                             var inventory = player.getInventory();
                             
                             // Get current items in slots 4 and 5
-                            var slot4Item = inventory.getStack(4);
-                            var slot5Item = inventory.getStack(5);
+                            var slot4Item = inventory.getItem(4);
+                            var slot5Item = inventory.getItem(5);
                             
                             // Log current state
                             logger.info("[HappyArtillery Test] {} running happytest command", player.getName().getString());
                             logger.info("[HappyArtillery Test] Slot 4: {} (Fire Control: {})", 
-                                slot4Item.isEmpty() ? "EMPTY" : slot4Item.getItem().getName().getString(),
+                                slot4Item.isEmpty() ? "EMPTY" : slot4Item.getItem().getName(slot4Item).getString(),
                                 CustomDataComponents.hasFireControlTag(slot4Item));
                             logger.info("[HappyArtillery Test] Slot 5: {} (Cry Control: {})", 
-                                slot5Item.isEmpty() ? "EMPTY" : slot5Item.getItem().getName().getString(),
+                                slot5Item.isEmpty() ? "EMPTY" : slot5Item.getItem().getName(slot5Item).getString(),
                                 CustomDataComponents.hasCryControlTag(slot5Item));
                             
                             // Apply test tags to slots 4 and 5
                             boolean createdSlot4 = false;
                             if (slot4Item.isEmpty()) {
-                                slot4Item = new net.minecraft.item.ItemStack(net.minecraft.item.Items.FIRE_CHARGE);
-                                inventory.setStack(4, slot4Item);
+                                slot4Item = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FIRE_CHARGE);
+                                inventory.setItem(4, slot4Item);
                                 createdSlot4 = true;
                                 logger.info("[HappyArtillery Test] Created temporary fire charge in slot 4");
                             }
@@ -105,8 +105,8 @@ public class HappyArtillery implements ModInitializer {
                             
                             boolean createdSlot5 = false;
                             if (slot5Item.isEmpty()) {
-                                slot5Item = new net.minecraft.item.ItemStack(net.minecraft.item.Items.GHAST_TEAR);
-                                inventory.setStack(5, slot5Item);
+                                slot5Item = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.GHAST_TEAR);
+                                inventory.setItem(5, slot5Item);
                                 createdSlot5 = true;
                                 logger.info("[HappyArtillery Test] Created temporary ghast tear in slot 5");
                             }
@@ -120,13 +120,13 @@ public class HappyArtillery implements ModInitializer {
                             logger.info("[HappyArtillery Test] Applied cry control tag to slot 5 (Temporary: " + createdSlot5 + ")");
                             
                             // Send feedback to player
-                            source.sendFeedback(() -> Text.literal("§a[Test] Applied control item tags to slots 4 & 5"), false);
-                            source.sendFeedback(() -> Text.literal("§7Slot 4: Fire Control (Temporary: " + CustomDataComponents.hasTemporaryTag(slot4Final) + ")"), false);
-                            source.sendFeedback(() -> Text.literal("§7Slot 5: Cry Control (Temporary: " + CustomDataComponents.hasTemporaryTag(slot5Final) + ")"), false);
-                            source.sendFeedback(() -> Text.literal("§7Check server logs for detailed output"), false);
+                            source.sendSuccess(() -> Component.literal("§a[Test] Applied control item tags to slots 4 & 5"), false);
+                            source.sendSuccess(() -> Component.literal("§7Slot 4: Fire Control (Temporary: " + CustomDataComponents.hasTemporaryTag(slot4Final) + ")"), false);
+                            source.sendSuccess(() -> Component.literal("§7Slot 5: Cry Control (Temporary: " + CustomDataComponents.hasTemporaryTag(slot5Final) + ")"), false);
+                            source.sendSuccess(() -> Component.literal("§7Check server logs for detailed output"), false);
                             
                         } catch (Exception e) {
-                            source.sendError(Text.literal("Error: " + e.getMessage()));
+                            source.sendFailure(Component.literal("Error: " + e.getMessage()));
                             logger.error("[HappyArtillery Test] Command error: {}", e.getMessage(), e);
                         }
                         return 1;

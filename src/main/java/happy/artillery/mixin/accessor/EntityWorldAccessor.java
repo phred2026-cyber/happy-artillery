@@ -1,8 +1,8 @@
 package happy.artillery.mixin.accessor;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -10,5 +10,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface EntityWorldAccessor {
     // Yarn field for Entity's world
     @Accessor("world")
-    World happy$getWorld();
+    Level happy$getLevel();
 }
